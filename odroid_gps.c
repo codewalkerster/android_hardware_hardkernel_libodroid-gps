@@ -158,6 +158,8 @@ static void nmea_received(void *line, void *data)
 static void start_gps ()
 {
     int ret;
+    char prop[PROPERTY_VALUE_MAX];
+    speed_t baud_rate = B9600;
 
     D("%s: enter", __FUNCTION__);
 
@@ -166,13 +168,9 @@ static void start_gps ()
 	    state.ctrl_state == ST_UNDEFINED) {
         state.gps_status.status = GPS_STATUS_SESSION_BEGIN;
 
-#ifdef EXTERNAL_GPS
-        state.fd = open("/dev/ttyACM0", O_RDONLY); 
-		if (state.fd < 0)
-        	state.fd = open("/dev/ttyUSB0", O_RDONLY); 
-#else
-        state.fd = open("/dev/ttySAC2", O_RDONLY); 
-#endif
+        property_get("ro.kernel.android.gps", prop, "/dev/ttyACM0");
+        ALOGE("ro.kernel.android.gps = %s", prop);
+        state.fd = open(prop, O_RDONLY);
 
         if (state.fd < 0)
             return;
@@ -186,6 +184,11 @@ static void start_gps ()
     } else
         D("Stop the GPS before starting");
 
+    property_get("ro.kernel.android.gps.speed", prop, "9600");
+    ALOGE("ro.kernel.android.gps.speed = %s", prop);
+    if (strcmp(prop, "4800") == 0)
+        baud_rate = B4800;
+
     // disable echo on serial lines
     if ( isatty( state.fd ) ) {
         struct termios  ios;
@@ -194,6 +197,7 @@ static void start_gps ()
         ios.c_oflag &= (~ONLCR); 			/* Stop \n -> \r\n translation on output */
         ios.c_iflag &= (~(ICRNL | INLCR)); 	/* Stop \r -> \n & \n -> \r translation on input */
         ios.c_iflag |= (IGNCR | IXOFF);  	/* Ignore \r & XON/XOFF on input */
+        cfsetispeed(&ios, baud_rate);
         tcsetattr( state.fd, TCSANOW, &ios );
     }
 
