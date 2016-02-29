@@ -157,7 +157,7 @@ void nmea_reader_set_callbacks(NmeaReader * r, GpsCallbacks * cbs)
         return;
 
     r->callback = cbs->location_cb;
-    if (cbs->location_cb != NULL && r->fix.flags != 0) {
+    if (cbs->location_cb != NULL) {
         ALOGD("%s: sending latest fix to new callback", __FUNCTION__);
         //r->callback(&r->fix);
         r->set_pending_callback_cb(CMD_LOCATION_CB);
@@ -523,14 +523,6 @@ static void nmea_reader_parse(NmeaReader * r)
             Token tok_longitudeHemi = nmea_tokenizer_get(tzer, 4);
 
             ALOGD("in GGL, fixStatus=%c", tok_fixStatus.p[0]);
-            if (tok_fixStatus.p[0] == 'A') {
-                nmea_reader_update_latlong(r, tok_latitude,
-                                           tok_latitudeHemi.p[0],
-                                           tok_longitude,
-                                           tok_longitudeHemi.p[0]);
-
-                r->update = 1;
-            }
         }
 /*
 **     RMC          Recommended Minimum sentence C
@@ -571,7 +563,6 @@ static void nmea_reader_parse(NmeaReader * r)
 
                 nmea_reader_update_bearing(r, tok_bearing);
                 nmea_reader_update_speed(r, tok_speed);
-                r->update = 1;
             }
         }
 
@@ -655,6 +646,10 @@ static void nmea_reader_parse(NmeaReader * r)
     } else {
         tok.p -= 2;
         ALOGD("unknown sentence '%.*s", tok.end - tok.p, tok.p);
+    }
+
+    if (((r->fix.flags & GPS_LOCATION_HAS_ACCURACY) != 0) & ((r->fix.flags & GPS_LOCATION_HAS_LAT_LONG) != 0)) {
+        r->update = 1;
     }
 
     if ((r->fix.flags != 0) && r->update) {
