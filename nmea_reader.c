@@ -47,6 +47,8 @@
 #pragma GCC diagnostic warning "-pedantic"
 #endif
 
+uint16_t  flags;
+
 /*****************************************************************/
 /*****************************************************************/
 /*****                                                       *****/
@@ -161,7 +163,7 @@ void nmea_reader_set_callbacks(NmeaReader * r, GpsCallbacks * cbs)
         ALOGD("%s: sending latest fix to new callback", __FUNCTION__);
         //r->callback(&r->fix);
         r->set_pending_callback_cb(CMD_LOCATION_CB);
-        r->fix.flags = 0;
+        flags = 0;
     }
 
     r->sv_status_callback = cbs->sv_status_cb;
@@ -308,7 +310,7 @@ nmea_reader_update_latlong(NmeaReader * r,
     if (longitudeHemi == 'W')
         lon = -lon;
 
-    r->fix.flags |= GPS_LOCATION_HAS_LAT_LONG;
+    flags |= GPS_LOCATION_HAS_LAT_LONG;
     r->fix.latitude = lat;
     r->fix.longitude = lon;
     EXIT;
@@ -327,7 +329,7 @@ nmea_reader_update_altitude(NmeaReader * r, Token altitude, Token units)
     if (tok.p >= tok.end)
         return -1;
 
-    r->fix.flags |= GPS_LOCATION_HAS_ALTITUDE;
+    flags |= GPS_LOCATION_HAS_ALTITUDE;
     r->fix.altitude = str2float(tok.p, tok.end);
     EXIT;
     return 0;
@@ -348,7 +350,7 @@ static int nmea_reader_update_accuracy(NmeaReader * r, Token accuracy)
         return 0;
     }
 
-    r->fix.flags |= GPS_LOCATION_HAS_ACCURACY;
+    flags |= GPS_LOCATION_HAS_ACCURACY;
     EXIT;
     return 0;
 }
@@ -362,7 +364,7 @@ static int nmea_reader_update_bearing(NmeaReader * r, Token bearing)
     if (tok.p >= tok.end)
         return -1;
 
-    r->fix.flags |= GPS_LOCATION_HAS_BEARING;
+    flags |= GPS_LOCATION_HAS_BEARING;
     r->fix.bearing = str2float(tok.p, tok.end);
     EXIT;
     return 0;
@@ -378,7 +380,7 @@ static int nmea_reader_update_speed(NmeaReader * r, Token speed)
     if (tok.p >= tok.end)
         return -1;
 
-    r->fix.flags |= GPS_LOCATION_HAS_SPEED;
+    flags |= GPS_LOCATION_HAS_SPEED;
     /*android requires speed in m/s, but nmea gives knots
      * -> convert..
      */
@@ -433,11 +435,11 @@ static void nmea_reader_parse(NmeaReader * r)
 **                               1 = GPS fix (SPS)
 **                               2 = DGPS fix
 **                               3 = PPS fix
-**			         4 = Real Time Kinematic
-**			         5 = Float RTK
+**                  4 = Real Time Kinematic
+**                  5 = Float RTK
 **                               6 = estimated (dead reckoning) (2.3 feature)
-**			         7 = Manual input mode
-**			         8 = Simulation mode
+**                  7 = Manual input mode
+**                  8 = Simulation mode
 **7     08           Number of satellites being tracked
 **8     0.9          Horizontal dilution of position
 **9     545.4,M      Altitude, Meters, above mean sea level
@@ -648,11 +650,12 @@ static void nmea_reader_parse(NmeaReader * r)
         ALOGD("unknown sentence '%.*s", tok.end - tok.p, tok.p);
     }
 
-    if (((r->fix.flags & GPS_LOCATION_HAS_ACCURACY) != 0) & ((r->fix.flags & GPS_LOCATION_HAS_LAT_LONG) != 0)) {
+    if (((flags & GPS_LOCATION_HAS_ACCURACY) != 0) & ((flags & GPS_LOCATION_HAS_LAT_LONG) != 0)) {
         r->update = 1;
     }
 
-    if ((r->fix.flags != 0) && r->update) {
+    if ((flags != 0) && r->update) {
+        r->fix.flags = flags;
 #if 0
         char temp[256];
         char *p = temp;
@@ -676,15 +679,16 @@ static void nmea_reader_parse(NmeaReader * r)
         if (r->fix.flags & GPS_LOCATION_HAS_ACCURACY) {
             p += snprintf(p, end - p, " accuracy=%g", r->fix.accuracy);
         }
-        gmtime_r((time_t *) & r->fix.timestamp, &utc);
+        time_t ts = (time_t) (r->fix.timestamp/1000);
+        gmtime_r(&ts, &utc);
         p += snprintf(p, end - p, " time=%s", asctime(&utc));
         ALOGD("%s", temp);
 #endif
         if (r->callback) {
             //r->callback(&r->fix);
             r->set_pending_callback_cb(CMD_LOCATION_CB);
-            r->fix.flags = 0;
             r->update = 0;
+            flags = 0;
         } else {
             ALOGE("no callback, keeping data until needed !");
         }
