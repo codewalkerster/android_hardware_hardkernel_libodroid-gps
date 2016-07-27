@@ -29,7 +29,7 @@
 #include <sys/epoll.h>
 #include <math.h>
 #include <time.h>
-#include <time64.h>
+//#include <time64.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <unistd.h>
@@ -192,7 +192,7 @@ static int nmea_reader_update_time(NmeaReader * r, Token tok)
     double seconds;
     double milliseconds;
     struct tm tm;
-    time64_t fix_time;
+    time_t fix_time;
 
     ENTER;
     if (tok.p + 6 > tok.end)
@@ -231,12 +231,12 @@ static int nmea_reader_update_time(NmeaReader * r, Token tok)
      * We immediately convert to milliseconds, as that is what is needed
      * in location fix struct.
      */
-    fix_time = timegm64(&tm) * 1000LL;
+    fix_time = timegm(&tm) * 1000LL;
     /* Now add the seconds+millliseconds */
     fix_time = fix_time + ((long) milliseconds);
 
     /* Assign calculated value to fix */
-    r->fix.timestamp = (time64_t) fix_time;
+    r->fix.timestamp = (time_t) fix_time;
     EXIT;
     return 0;
 }
