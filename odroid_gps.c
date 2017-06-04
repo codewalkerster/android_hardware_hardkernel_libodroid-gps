@@ -37,6 +37,8 @@
 #include "nmea_reader.h"
 #include "version.h"
 
+extern int scan_usb_gps_device(char **_devname, speed_t *_baudrate);
+
 /* Just check this file */
 #ifdef __GNUC__
 #pragma GCC diagnostic warning "-pedantic"
@@ -159,7 +161,7 @@ static void start_gps ()
 {
     int ret;
     char prop[PROPERTY_VALUE_MAX];
-    speed_t baud_rate = B9600;
+    speed_t baudrate = 0;
 
     D("%s: enter", __FUNCTION__);
 
@@ -168,12 +170,23 @@ static void start_gps ()
 	    state.ctrl_state == ST_UNDEFINED) {
         state.gps_status.status = GPS_STATUS_SESSION_BEGIN;
 
-        property_get("ro.kernel.android.gps", prop, "/dev/ttyACM0");
-        ALOGE("ro.kernel.android.gps = %s", prop);
-        state.fd = open(prop, O_RDONLY);
+	char *devname = NULL;
+	speed_t baudrate;
 
-        if (state.fd < 0)
-            return;
+	int ret = scan_usb_gps_device(&devname, &baudrate);
+	if (ret == 0) {
+		state.fd = open(devname, O_RDONLY);
+		ALOGE("%s", devname);
+	}
+
+	if (state.fd < 0) {
+		property_get("ro.kernel.android.gps", prop, "/dev/ttyACM0");
+		ALOGE("ro.kernel.android.gps = %s", prop);
+		state.fd = open(prop, O_RDONLY);
+
+		if (state.fd < 0)
+			return;
+	}
 
         set_pending_command(CMD_STATUS_CB);
 
@@ -184,10 +197,14 @@ static void start_gps ()
     } else
         D("Stop the GPS before starting");
 
-    property_get("ro.kernel.android.gps.speed", prop, "9600");
-    ALOGE("ro.kernel.android.gps.speed = %s", prop);
-    if (strcmp(prop, "4800") == 0)
-        baud_rate = B4800;
+    if (baudrate <= 0) {
+        baudrate = B9600;
+
+        property_get("ro.kernel.android.gps.speed", prop, "9600");
+        ALOGE("ro.kernel.android.gps.speed = %s", prop);
+        if (strcmp(prop, "4800") == 0)
+            baudrate = B4800;
+    }
 
     // disable echo on serial lines
     if ( isatty( state.fd ) ) {
@@ -197,7 +214,7 @@ static void start_gps ()
         ios.c_oflag &= (~ONLCR); 			/* Stop \n -> \r\n translation on output */
         ios.c_iflag &= (~(ICRNL | INLCR)); 	/* Stop \r -> \n & \n -> \r translation on input */
         ios.c_iflag |= (IGNCR | IXOFF);  	/* Ignore \r & XON/XOFF on input */
-        cfsetispeed(&ios, baud_rate);
+        cfsetispeed(&ios, baudrate);
         tcsetattr( state.fd, TCSANOW, &ios );
     }
 
