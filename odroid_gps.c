@@ -27,6 +27,7 @@
 #include <semaphore.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #define  LOG_TAG  "libmbm-gps"
 #include <cutils/log.h>
@@ -155,11 +156,63 @@ static void nmea_received(void *line, void *data)
     nmea_reader_add(state.reader, (char *) line);
 }
 
+static const struct {
+    const char* str;
+    speed_t baudrate;
+} termbits[] = {
+    { "2400", B2400 },
+    { "4800", B4800 },
+    { "9600", B9600 },
+    { "115200", B115200 },
+};
+
+static speed_t termbit(const char* str)
+{
+    if (str) {
+        int i;
+        for (i = 0; i < sizeof(termbits) / sizeof(termbits[0]); i++) {
+            if (0 == strcmp(termbits[i].str, str))
+                return termbits[i].baudrate;
+        }
+    }
+
+    return B9600;
+}
+
+static const char* nameof_termbits(speed_t baudrate)
+{
+    int i;
+    for (i = 0; i < sizeof(termbits) / sizeof(termbits[0]); i++) {
+        if (termbits[i].baudrate == baudrate)
+            return termbits[i].str;
+    }
+
+    return "unknown";
+}
+
+static int open_ttygps(const char *devname)
+{
+	struct stat st;
+	if (devname && (0 == lstat(devname, &st))) {
+		int fd = open(devname, O_RDONLY);
+		if (fd < 0) {
+			ALOGE("Not able to open device - %s (%s)",
+					devname, strerror(errno));
+			return -errno;
+		}
+		return fd;
+	}
+
+	return -EINVAL;
+}
+
 static void start_gps ()
 {
     int ret;
     char prop[PROPERTY_VALUE_MAX];
-    speed_t baud_rate = B9600;
+    struct termios ios;
+    char *devname = "/dev/ttyGPS";
+    speed_t baudrate = B9600;
 
     D("%s: enter", __FUNCTION__);
 
@@ -168,38 +221,56 @@ static void start_gps ()
 	    state.ctrl_state == ST_UNDEFINED) {
         state.gps_status.status = GPS_STATUS_SESSION_BEGIN;
 
-        property_get("ro.kernel.android.gps", prop, "/dev/ttyACM0");
-        ALOGE("ro.kernel.android.gps = %s", prop);
-        state.fd = open(prop, O_RDONLY);
+        /*
+         * Open default GPS device which is created by ueventd
+         */
+        state.fd = open_ttygps(devname);
+        if (state.fd < 0) {
+            property_get("ro.kernel.android.gps", prop, "/dev/ttyACM0");
+            devname = prop;
+            state.fd = open(prop, O_RDONLY);
+        }
 
-        if (state.fd < 0)
+        /* Drop GPS service if failed open all candidate device nodes */
+        if (state.fd < 0) {
+            ALOGE("Failed to open a GPS device (%s)", devname);
             return;
+        }
+
+        /*
+         * Set baudrate when TTY device is opened with the device node from
+         * system property.
+         */
+        if (devname == prop) {
+            property_get("ro.kernel.android.gps.speed", prop, "9600");
+            baudrate == termbit(prop);
+
+            // disable echo on serial lines
+            if (isatty(state.fd)) {
+                tcgetattr(state.fd, &ios);
+                ios.c_lflag = 0;                    /* disable ECHO, ICANON, etc... */
+                ios.c_oflag &= (~ONLCR);            /* Stop \n -> \r\n translation on output */
+                ios.c_iflag &= (~(ICRNL | INLCR));  /* Stop \r -> \n & \n -> \r translation on input */
+                ios.c_iflag |= (IGNCR | IXOFF);     /* Ignore \r & XON/XOFF on input */
+                cfsetispeed(&ios, baudrate);
+                tcsetattr(state.fd, TCSANOW, &ios);
+            }
+        }
+
+        /* Get actual baudrate from TTY device */
+        tcgetattr(state.fd, &ios);
+        baudrate = cfgetispeed(&ios);
+
+        ALOGD("Success to open GPS from %s (baudrate=%s)", devname,
+                        nameof_termbits(baudrate));
 
         set_pending_command(CMD_STATUS_CB);
 
         if (pthread_create( &state.thread, NULL, gps_state_thread, &state) != 0) {
             ALOGE("could not create gps thread: %s", strerror(errno));
         }
-
     } else
         D("Stop the GPS before starting");
-
-    property_get("ro.kernel.android.gps.speed", prop, "9600");
-    ALOGE("ro.kernel.android.gps.speed = %s", prop);
-    if (strcmp(prop, "4800") == 0)
-        baud_rate = B4800;
-
-    // disable echo on serial lines
-    if ( isatty( state.fd ) ) {
-        struct termios  ios;
-        tcgetattr( state.fd, &ios );
-        ios.c_lflag = 0;  					/* disable ECHO, ICANON, etc... */
-        ios.c_oflag &= (~ONLCR); 			/* Stop \n -> \r\n translation on output */
-        ios.c_iflag &= (~(ICRNL | INLCR)); 	/* Stop \r -> \n & \n -> \r translation on input */
-        ios.c_iflag |= (IGNCR | IXOFF);  	/* Ignore \r & XON/XOFF on input */
-        cfsetispeed(&ios, baud_rate);
-        tcsetattr( state.fd, TCSANOW, &ios );
-    }
 
     D("%s: exit", __FUNCTION__);
 }
@@ -707,3 +778,5 @@ const struct hw_module_t HAL_MODULE_INFO_SYM = {
     .author = "HARDKERNEL",
     .methods = &odroid_gps_module_methods,
 };
+
+/* vim: set ts=4 sw=4 expandtab: */
