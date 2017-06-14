@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<odroid-gps>
-    <default device="/dev/ttyACM0" baudrate="9600" />
-
-    <devices>
-        <usbdev vid="10c4" pid="ea60" baudrate="9600" />
-    </devices>
-</odroid-gps>
