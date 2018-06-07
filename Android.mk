@@ -15,9 +15,7 @@ LOCAL_MODULE_TAGS := optional
 
 LOCAL_SRC_FILES := \
 	odroid_gps.c \
-	nmea_reader.h \
 	nmea_reader.c \
-	nmea_tokenizer.h \
 	nmea_tokenizer.c
 
 LOCAL_SHARED_LIBRARIES := \
@@ -30,6 +28,9 @@ LOCAL_CFLAGS += -DANDROID -Wall -Wextra
 
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_RELATIVE_PATH := hw
+
+LOCAL_SHARED_LIBRARIES := \
+	liblog libcutils
 
 include $(BUILD_SHARED_LIBRARY)
 
