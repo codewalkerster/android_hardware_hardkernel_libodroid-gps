@@ -759,7 +759,7 @@ static int odroid_open_gps(const struct hw_module_t* module,
     dev->common.module = (struct hw_module_t*) module;
     dev->get_gps_interface = odroid_get_gps_interface;
 
-    *device = (struct hw_device_t*)dev;
+    *device = &dev->common;
 
     D("%s: exit", __FUNCTION__);
     return 0;
@@ -769,14 +769,20 @@ static struct hw_module_methods_t odroid_gps_module_methods = {
     .open = odroid_open_gps
 };
 
-const struct hw_module_t HAL_MODULE_INFO_SYM = {
-    .tag = HARDWARE_MODULE_TAG,
-    .version_major = 1,
-    .version_minor = 0,
-    .id = GPS_HARDWARE_MODULE_ID,
-    .name = "Odoroid GPS",
-    .author = "HARDKERNEL",
-    .methods = &odroid_gps_module_methods,
+struct gps_module_t {
+    struct hw_module_t common;
+};
+
+struct gps_module_t HAL_MODULE_INFO_SYM = {
+    .common = {
+        .tag = HARDWARE_MODULE_TAG,
+        .module_api_version = 1,
+        .hal_api_version = 0,
+        .id = GPS_HARDWARE_MODULE_ID,
+        .name = "Odoroid GPS",
+        .author = "HARDKERNEL",
+        .methods = &odroid_gps_module_methods,
+    }
 };
 
 /* vim: set ts=4 sw=4 expandtab: */
