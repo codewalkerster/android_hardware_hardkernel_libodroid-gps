@@ -13,6 +13,12 @@ endif
 LOCAL_MODULE := gps.$(TARGET_PRODUCT)
 LOCAL_MODULE_TAGS := optional
 
+LOCAL_C_INCLUDES += \
+	hardware/libhardware/include \
+	system/core/libcutils/include \
+	system/core/libutils/include \
+	system/core/libsystem/include
+
 LOCAL_SRC_FILES := \
 	odroid_gps.c \
 	nmea_reader.c \
@@ -24,7 +30,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libdl \
 	libc
 
-LOCAL_CFLAGS += -DANDROID -Wall -Wextra
+LOCAL_CFLAGS += -DANDROID -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare -Wno-unused-comparison -Wno-incompatible-pointer-types -Wno-unused-function
 
 LOCAL_PRELINK_MODULE := false
 LOCAL_PROPRIETARY_MODULE := true

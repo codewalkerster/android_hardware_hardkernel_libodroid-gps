@@ -36,11 +36,6 @@
 #include "log.h"
 #include "nmea_tokenizer.h"
 
-/* Just check this file */
-#ifdef __GNUC__
-#pragma GCC diagnostic warning "-pedantic"
-#endif
-
 /*****************************************************************/
 /*****************************************************************/
 /*****                                                       *****/

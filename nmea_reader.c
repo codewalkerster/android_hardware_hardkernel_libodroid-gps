@@ -42,11 +42,6 @@
 #include "nmea_tokenizer.h"
 #include "nmea_reader.h"
 
-/* Just check this file */
-#ifdef __GNUC__
-#pragma GCC diagnostic warning "-pedantic"
-#endif
-
 uint16_t  flags;
 
 /*****************************************************************/

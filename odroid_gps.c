@@ -38,11 +38,6 @@
 #include "nmea_reader.h"
 #include "version.h"
 
-/* Just check this file */
-#ifdef __GNUC__
-#pragma GCC diagnostic warning "-pedantic"
-#endif
-
 #ifdef DEBUG
 #  define  D(...)   ALOGD(__VA_ARGS__)
 #else
