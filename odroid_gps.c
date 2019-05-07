@@ -153,8 +153,9 @@ static void nmea_received(void *line, void *data)
 static void start_gps ()
 {
     int ret;
-    char prop[PROPERTY_VALUE_MAX];
+    char prop[PROPERTY_VALUE_MAX] = {'\0',};
     speed_t baud_rate = B9600;
+    int vid, pid = 0;
 
     D("%s: enter", __FUNCTION__);
 
@@ -163,10 +164,56 @@ static void start_gps ()
         state.ctrl_state == ST_UNDEFINED) {
         state.gps_status.status = GPS_STATUS_SESSION_BEGIN;
 
-        property_get("ro.kernel.android.gps", prop, "/dev/ttyACM0");
-        ALOGE("ro.kernel.android.gps = %s", prop);
-        state.fd = open(prop, O_RDONLY);
+        property_get("ro.gps.id.vendor", prop, "1546");
+        vid = strtol(prop, NULL, 16);
+        memset(prop, '\0', PROPERTY_VALUE_MAX);
+        property_get("ro.gps.id.product", prop, "01a7");
+        pid = strtol(prop, NULL, 16);
 
+        memset(prop, '\0', PROPERTY_VALUE_MAX);
+        property_get("ro.kernel.android.gps", prop, "/dev/ttyACM");
+        ALOGE("ro.kernel.android.gps = %s", prop);
+        int i = 0;
+        char buf[64];
+        char path[64];
+        FILE *fp = NULL;
+        size_t len = 0;
+        ssize_t read;
+        strcpy(path, prop);
+        strcat(path, "%d");
+        do {
+            sprintf(buf, path, i);
+            state.fd = open(buf, O_RDONLY);
+            if (state.fd > 0) {
+                sprintf(buf, "/sys/class/tty/ttyACM%d/device/uevent", i);
+                fp = fopen(buf, "r");
+                if (fp != NULL) {
+                    char line[128];
+                    while(fgets(line, sizeof(line), fp) != NULL) {
+                        if (strncmp(line, "PRODUCT=", 8) == 0) {
+                            char *ptr = strchr(line, '=') + 1;
+                            char *tr = strtok(ptr, "/");
+                            int j = 0;
+                            int value[3];
+                            while (tr != NULL) {
+                                value[j] = strtol(tr, NULL, 16);
+                                tr = strtok(NULL, "/");
+                                j++;
+                            }
+                            if (value[0] == vid && value[1] == pid) {
+                                fclose(fp);
+                                goto found;
+                            }
+                        }
+                    }
+                }
+                fclose(fp);
+            }
+            i++;
+            close(state.fd);
+        } while(state.fd > 0);
+
+found:
         if (state.fd < 0)
             return;
 
