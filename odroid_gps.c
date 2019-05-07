@@ -28,7 +28,7 @@
 #include <signal.h>
 #include <unistd.h>
 
-#define  LOG_TAG  "libmbm-gps"
+#define  LOG_TAG  "libodroid-gps"
 #include <cutils/log.h>
 #include <cutils/sockets.h>
 #include <cutils/properties.h>
@@ -99,16 +99,16 @@ static void* gps_state_thread( void*  arg );
 static int jul_days(struct tm tm_day)
 {
     return
-	367 * (tm_day.tm_year + 1900) -
-	floor(7 *
-	      (floor((tm_day.tm_mon + 10) / 12) +
-	       (tm_day.tm_year + 1900)) / 4) -
-	floor(3 *
-	      (floor
-	       ((floor((tm_day.tm_mon + 10) / 12) +
-		 (tm_day.tm_year + 1899)) / 100) + 1) / 4) +
-	floor(275 * (tm_day.tm_mon + 1) / 9) + tm_day.tm_mday + 1721028 -
-	2400000;
+    367 * (tm_day.tm_year + 1900) -
+    floor(7 *
+          (floor((tm_day.tm_mon + 10) / 12) +
+           (tm_day.tm_year + 1900)) / 4) -
+    floor(3 *
+          (floor
+           ((floor((tm_day.tm_mon + 10) / 12) +
+         (tm_day.tm_year + 1899)) / 100) + 1) / 4) +
+    floor(275 * (tm_day.tm_mon + 1) / 9) + tm_day.tm_mday + 1721028 -
+    2400000;
 }
 
 static void utc_to_gps(const time_t time, int *tow, int *week)
@@ -118,8 +118,8 @@ static void utc_to_gps(const time_t time, int *tow, int *week)
     int day, days_cnt;
 
     if (tow == NULL || week == NULL) {
-	    ALOGE("%s: tow/week null", __FUNCTION__);
-	    return;
+        ALOGE("%s: tow/week null", __FUNCTION__);
+        return;
     }
     gmtime_r(&time, &tm_utc);
     tm_gps.tm_year = 80;
@@ -129,9 +129,9 @@ static void utc_to_gps(const time_t time, int *tow, int *week)
     days_cnt = jul_days(tm_utc) - jul_days(tm_gps);
     day = days_cnt % 7;
     *week = floor(days_cnt / 7);
-    *tow = (day * 86400) + ((tm_utc.tm_hour * 60) + 
-		    tm_utc.tm_min) * 60 +
-		    tm_utc.tm_sec;
+    *tow = (day * 86400) + ((tm_utc.tm_hour * 60) +
+    tm_utc.tm_min) * 60 +
+    tm_utc.tm_sec;
 }
 
 static void set_pending_command (char cmd) {
@@ -160,7 +160,7 @@ static void start_gps ()
 
     if (state.ctrl_state == ST_STOPPED ||
         state.ctrl_state == ST_FAILED ||
-	    state.ctrl_state == ST_UNDEFINED) {
+        state.ctrl_state == ST_UNDEFINED) {
         state.gps_status.status = GPS_STATUS_SESSION_BEGIN;
 
         property_get("ro.kernel.android.gps", prop, "/dev/ttyACM0");
@@ -175,7 +175,6 @@ static void start_gps ()
         if (pthread_create( &state.thread, NULL, gps_state_thread, &state) != 0) {
             ALOGE("could not create gps thread: %s", strerror(errno));
         }
-
     } else
         D("Stop the GPS before starting");
 
@@ -188,10 +187,10 @@ static void start_gps ()
     if ( isatty( state.fd ) ) {
         struct termios  ios;
         tcgetattr( state.fd, &ios );
-        ios.c_lflag = 0;  					/* disable ECHO, ICANON, etc... */
-        ios.c_oflag &= (~ONLCR); 			/* Stop \n -> \r\n translation on output */
-        ios.c_iflag &= (~(ICRNL | INLCR)); 	/* Stop \r -> \n & \n -> \r translation on input */
-        ios.c_iflag |= (IGNCR | IXOFF);  	/* Ignore \r & XON/XOFF on input */
+        ios.c_lflag = 0;                    /* disable ECHO, ICANON, etc... */
+        ios.c_oflag &= (~ONLCR);            /* Stop \n -> \r\n translation on output */
+        ios.c_iflag &= (~(ICRNL | INLCR));  /* Stop \r -> \n & \n -> \r translation on input */
+        ios.c_iflag |= (IGNCR | IXOFF);     /* Ignore \r & XON/XOFF on input */
         cfsetispeed(&ios, baud_rate);
         tcsetattr( state.fd, TCSANOW, &ios );
     }
@@ -208,7 +207,7 @@ static void stop_gps ()
     if (state.ctrl_state == ST_STOPPING || state.ctrl_state == ST_STOPPED)
         D("GPS is already stopped or stopping");
     else {
-        close(state.fd);        
+        close(state.fd);
         state.fd = -1;
         state.gps_status.status = GPS_STATUS_SESSION_END;
         set_pending_command(CMD_STATUS_CB);
@@ -229,20 +228,20 @@ static int epoll_register(int epoll_fd, int fd)
     ev.events = EPOLLIN;
     ev.data.fd = fd;
     do {
-	ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev);
+        ret = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev);
     } while (ret < 0 && errno == EINTR);
-    
+
     return ret;
 }
 
 static int epoll_deregister(int epoll_fd, int fd)
 {
     int ret;
-    
+
     do {
         ret = epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
     } while (ret < 0 && errno == EINTR);
-    
+
     return ret;
 }
 
@@ -284,22 +283,22 @@ static void main_loop (void *arg)
                     ret = read(fd, &cmd, 1);
                 } while (ret < 0 && errno == EINTR);
 
-		switch (cmd) {
-		    D("%s cmd %d", __FUNCTION__, (int) cmd); 
-		case CMD_STATUS_CB:
-		   state.status_callback(&state.gps_status);
-		   break;
-		case CMD_AGPS_STATUS_CB:
-		    break;
-		case CMD_SV_STATUS_CB:
+                switch (cmd) {
+                D("%s cmd %d", __FUNCTION__, (int) cmd);
+                case CMD_STATUS_CB:
+                    state.status_callback(&state.gps_status);
+                    break;
+                case CMD_AGPS_STATUS_CB:
+                    break;
+                case CMD_SV_STATUS_CB:
                     state.reader->sv_status_callback(&state.reader->sv_status);
                     break;
                 case CMD_LOCATION_CB:
                     state.reader->callback(&state.reader->fix);
                     break;
                 case CMD_NMEA_CB:
-		    state.reader->nmea_callback(time(NULL)*1000,
-			state.reader->in, state.reader->pos + 1);
+                    state.reader->nmea_callback(time(NULL)*1000,
+                    state.reader->in, state.reader->pos + 1);
                     break;
                 case CMD_QUIT:
                     goto exit;
@@ -319,8 +318,7 @@ exit:
     epoll_deregister(epoll_fd, control_fd);
 }
 
-static void*
-gps_state_thread( void*  arg )
+static void* gps_state_thread( void*  arg )
 {
     int         epoll_fd   = epoll_create(1);
     int         started    = 0;
@@ -331,7 +329,7 @@ gps_state_thread( void*  arg )
     epoll_register( epoll_fd, gps_fd );
 
     D("gps thread running gps_fd = %d", gps_fd);
-	
+
     for (;;) {
         struct epoll_event   events[1];
         int nevents;
@@ -350,27 +348,23 @@ gps_state_thread( void*  arg )
         if ((events[0].events & EPOLLIN) != 0) {
             int  fd = events[0].data.fd;
 
-            if (fd == gps_fd)
-            {
+            if (fd == gps_fd) {
                 char  buff[512];
-                int  nn, ret;
-                
+                int nn, ret;
+
                 D("gps fd event");
-               
-                do	{
+
+                do {
                     ret = read(fd, buff, sizeof(buff));
-                }	while(ret < 0 && errno == EINTR); 
-                
-                if (ret > 0)	{
-                    for (nn = 0; nn < ret; nn++)	
+                } while(ret < 0 && errno == EINTR);
+
+                if (ret > 0) {
+                    for (nn = 0; nn < ret; nn++)
                         nmea_reader_addc(&state.reader, buff[nn]);
                 }
 
-
                 D("gps fd event end");
-            }
-            else
-            {
+            } else {
                 ALOGE("epoll_wait() returned unkown fd %d ?", fd);
             }
         }
@@ -380,41 +374,25 @@ Exit:
     return NULL;
 }
 
-
 static int odroid_gps_init(GpsCallbacks * callbacks)
-{   
+{
     int ret;
     char prop[PROPERTY_VALUE_MAX];
 
     if (callbacks == NULL) {
-	    ALOGE("%s, callbacks null", __FUNCTION__);
-	    return -1;
+        ALOGE("%s, callbacks null", __FUNCTION__);
+        return -1;
     }
 
     if(callbacks->set_capabilities_cb) {
         callbacks->set_capabilities_cb(GPS_CAPABILITY_SCHEDULING | GPS_CAPABILITY_MSB);
-    }
-    else {
-	    ALOGE("%s capabilities_cb is null",  __FUNCTION__);
+    } else {
+        ALOGE("%s capabilities_cb is null",  __FUNCTION__);
     }
 
     memset(&state, 0, sizeof(struct gps_state));
     state.int_state = INT_STATE_UNDEFINED;
     state.have_supl_apn = 0;
-     
-    if (property_get("mbm.gps.config.gps_ctrl", prop, "") == 0) {
-        D("No gps ctrl device set, using the default instead.");
-        snprintf(prop, PROPERTY_VALUE_MAX, "%s", "/dev/bus/usb/002/049");
-    } else {
-        D("Using gps ctrl device: %s", prop);
-    }
-
-    if (property_get("mbm.gps.config.gps_nmea", prop, "") == 0) {
-        D("No gps nmea device set, using the default instead.");
-        snprintf(prop, PROPERTY_VALUE_MAX, "%s", "/dev/ttyACM2");
-    } else {
-        D("Using gps nmea device: %s", prop);
-    }
 
     nmea_reader_init(state.reader);
 
@@ -432,7 +410,7 @@ static int odroid_gps_init(GpsCallbacks * callbacks)
 
     /* main thread must be started prior to setting nmea_reader callbacks */
     state.main_thread = state.create_thread_callback("odroid_main_thread",
-		    main_loop, NULL);
+            main_loop, NULL);
 
     state.reader->set_pending_callback_cb = set_pending_command;
     nmea_reader_set_callbacks(state.reader, callbacks);
@@ -454,7 +432,7 @@ static void odroid_gps_cleanup(void)
                 break;
             }
             ALOGD ("Waiting for gps ctrl to stop");
-            sleep (1);
+            sleep(1);
             i++;
         }
     }
@@ -470,11 +448,10 @@ static void odroid_gps_cleanup(void)
     D("%s: exit", __FUNCTION__);
 }
 
-
 static int odroid_gps_start()
 {
     D("%s: enter", __FUNCTION__);
-    
+
     state.gps_status.status = GPS_STATUS_ENGINE_ON;
     set_pending_command(CMD_STATUS_CB);
 
@@ -487,16 +464,15 @@ static int odroid_gps_start()
 static int odroid_gps_stop()
 {
     D("%s: enter", __FUNCTION__);
-    stop_gps();    
+    stop_gps();
     D("%s: exit 0", __FUNCTION__);
     return 0;
 }
 
-
 /* Not implemented just debug*/
 static int
 odroid_gps_inject_time(GpsUtcTime time, int64_t timeReference,
-		    int uncertainty)
+        int uncertainty)
 {
     char buff[100];
     int tow, week;
@@ -522,9 +498,8 @@ odroid_gps_inject_time(GpsUtcTime time, int64_t timeReference,
 static int
 odroid_gps_inject_location(double latitude, double longitude, float accuracy)
 {
-  
     ALOGD("%s: lat = %f , lon = %f , acc = %f", __FUNCTION__, latitude,
-	 longitude, accuracy);
+            longitude, accuracy);
     return 0;
 }
 
@@ -535,146 +510,137 @@ static void odroid_gps_delete_aiding_data(GpsAidingData flags)
 
 static char* get_mode_name(int mode)
 {
-	switch (mode) {
-	case GPS_POSITION_MODE_STANDALONE:
-		return "GPS_POSITION_MODE_STANDALONE";
-	case GPS_POSITION_MODE_MS_BASED:
-		return "GPS_POSITION_MODE_MS_BASED";
-	case GPS_POSITION_MODE_MS_ASSISTED:
-		return "GPS_POSITION_MODE_MS_ASSISTED";
-	default:
-		return "UNKNOWN MODE";
-	}
+    switch (mode) {
+    case GPS_POSITION_MODE_STANDALONE:
+        return "GPS_POSITION_MODE_STANDALONE";
+    case GPS_POSITION_MODE_MS_BASED:
+        return "GPS_POSITION_MODE_MS_BASED";
+    case GPS_POSITION_MODE_MS_ASSISTED:
+        return "GPS_POSITION_MODE_MS_ASSISTED";
+    default:
+        return "UNKNOWN MODE";
+    }
 }
 
 static int odroid_gps_set_position_mode(GpsPositionMode mode,
-				GpsPositionRecurrence recurrence,
-				uint32_t min_interval,
-				uint32_t preferred_accuracy,
-				uint32_t preferred_time)
+        GpsPositionRecurrence recurrence,
+        uint32_t min_interval,
+        uint32_t preferred_accuracy,
+        uint32_t preferred_time)
 {
-	ALOGD("%s:enter  %s min_interval = %d pref=%d", __FUNCTION__,
-			get_mode_name(mode), min_interval, preferred_time);
+    ALOGD("%s:enter  %s min_interval = %d pref=%d", __FUNCTION__,
+            get_mode_name(mode), min_interval, preferred_time);
 
-	switch (mode) {
-	case GPS_POSITION_MODE_MS_BASED:
-		ALOGE("MS_BASED mode setting SUPL");
-		/* We handle the connection inside GPS so no need fr this */
-		/*
-		set_pending_command(CMD_AGPS_STATUS_CB);
-		*/
-		break;
-	case GPS_POSITION_MODE_MS_ASSISTED:
-		ALOGE("MS_ASSISTED mode setting SUPL");
-		break;
-	case GPS_POSITION_MODE_STANDALONE:
-	default:
-		break;
-	}
+    switch (mode) {
+    case GPS_POSITION_MODE_MS_BASED:
+        ALOGE("MS_BASED mode setting SUPL");
+        /* We handle the connection inside GPS so no need fr this */
+        /*
+        set_pending_command(CMD_AGPS_STATUS_CB);
+        */
+        break;
+    case GPS_POSITION_MODE_MS_ASSISTED:
+        ALOGE("MS_ASSISTED mode setting SUPL");
+        break;
+    case GPS_POSITION_MODE_STANDALONE:
+    default:
+        break;
+    }
 
-	ALOGD("%s: exit 0", __FUNCTION__);
-	return 0;
+    ALOGD("%s: exit 0", __FUNCTION__);
+    return 0;
 }
 
 static const void *odroid_gps_get_extension(const char *name)
 {
-  ALOGD("%s: enter name=%s", __FUNCTION__, name);
- 
-  if (name == NULL)
-    return NULL;
+    ALOGD("%s: enter name=%s", __FUNCTION__, name);
+
+    if (name == NULL)
+        return NULL;
 
     ALOGD("%s, querying %s", __FUNCTION__, name);
 
     //codewalker
     return NULL;
 
-#if 0
-    /* Not supported */
-    if(strstr (name, GPS_NI_INTERFACE)) {
-      ALOGD("%s: exit &mbmGpsNiInterface", __FUNCTION__);
-        return &mbmGpsNiInterface;
-    }
-#endif
-
     ALOGD("%s: exit NULL", __FUNCTION__);
     return NULL;
 }
 
 /** Represents the standard GPS interface. */
-static const GpsInterface mbmGpsInterface = {
-	sizeof(GpsInterface),
-	/**
-	 * Opens the interface and provides the callback routines
-	 * to the implemenation of this interface.
-	 */
+static const GpsInterface odroidGpsInterface = {
+    sizeof(GpsInterface),
+    /**
+     * Opens the interface and provides the callback routines
+     * to the implemenation of this interface.
+     */
     odroid_gps_init,
 
-	/** Starts navigating. */
+    /** Starts navigating. */
     odroid_gps_start,
 
-	/** Stops navigating. */
+    /** Stops navigating. */
     odroid_gps_stop,
 
-	/** Closes the interface. */
+    /** Closes the interface. */
     odroid_gps_cleanup,
 
-	/** Injects the current time. */
+    /** Injects the current time. */
     odroid_gps_inject_time,
 
-	/** Injects current location from another location provider
-	 *  (typically cell ID).
-	 *  latitude and longitude are measured in degrees
-	 *  expected accuracy is measured in meters
-	 */
+    /** Injects current location from another location provider
+     *  (typically cell ID).
+     *  latitude and longitude are measured in degrees
+     *  expected accuracy is measured in meters
+     */
     odroid_gps_inject_location,
 
-	/**
-	 * Specifies that the next call to start will not use the
-	 * information defined in the flags. GPS_DELETE_ALL is passed for
-	 * a cold start.
-	 */
+    /**
+     * Specifies that the next call to start will not use the
+     * information defined in the flags. GPS_DELETE_ALL is passed for
+     * a cold start.
+     */
 
     odroid_gps_delete_aiding_data,
-	/**
-	 * fix_frequency represents the time between fixes in seconds.
-	 * Set fix_frequency to zero for a single-shot fix.
-	 */
+    /**
+     * fix_frequency represents the time between fixes in seconds.
+     * Set fix_frequency to zero for a single-shot fix.
+     */
     odroid_gps_set_position_mode,
 
-	/** Get a pointer to extension information. */
+    /** Get a pointer to extension information. */
     odroid_gps_get_extension,
 };
 
 const GpsInterface *gps_get_hardware_interface()
 {
     ALOGD("gps_get_hardware_interface");
-    return &mbmGpsInterface;
+    return &odroidGpsInterface;
 }
 
 /* This is for Gingerbread */
 const GpsInterface* odroid_get_gps_interface(struct gps_device_t* dev)
 {
     ALOGD("odroid_gps_get_hardware_interface");
-    return &mbmGpsInterface;
+    return &odroidGpsInterface;
 }
 
 static int odroid_open_gps(const struct hw_module_t* module,
-			char const* name,
-			struct hw_device_t** device)
+        char const* name, struct hw_device_t** device)
 {
-  struct gps_device_t *dev;
-  
+    struct gps_device_t *dev;
+
     D("%s: enter", __FUNCTION__);
 
     if (module == NULL) {
-	    ALOGE("%s: module null", __FUNCTION__);
-	    return -1;
+        ALOGE("%s: module null", __FUNCTION__);
+        return -1;
     }
 
     dev = malloc(sizeof(struct gps_device_t));
     if (!dev) {
-	    ALOGE("%s: malloc fail", __FUNCTION__);
-	    return -1;
+        ALOGE("%s: malloc fail", __FUNCTION__);
+        return -1;
     }
     memset(dev, 0, sizeof(*dev));
 
