@@ -171,21 +171,22 @@ static void start_gps ()
         pid = strtol(prop, NULL, 16);
 
         memset(prop, '\0', PROPERTY_VALUE_MAX);
-        property_get("ro.kernel.android.gps", prop, "/dev/ttyACM");
-        ALOGE("ro.kernel.android.gps = %s", prop);
+        property_get("ro.kernel.android.gps", prop, "ttyACM");
+        ALOGI("ro.kernel.android.gps = %s", prop);
         int i = 0;
         char buf[64];
-        char path[64];
+        char path[64] = "/dev/";
         FILE *fp = NULL;
         size_t len = 0;
         ssize_t read;
-        strcpy(path, prop);
+        strcat(path, prop);
         strcat(path, "%d");
         do {
             sprintf(buf, path, i);
             state.fd = open(buf, O_RDONLY);
             if (state.fd > 0) {
-                sprintf(buf, "/sys/class/tty/ttyACM%d/device/uevent", i);
+                sprintf(buf, "/sys/class/tty/%s%d/device/uevent", prop, i);
+                ALOGI("USB GPS node path = %s", buf);
                 fp = fopen(buf, "r");
                 if (fp != NULL) {
                     char line[128];
@@ -200,8 +201,9 @@ static void start_gps ()
                                 tr = strtok(NULL, "/");
                                 j++;
                             }
-                            if (value[0] == vid && value[1] == pid) {
+                            if (value[0] == vid) {
                                 fclose(fp);
+                                ALOGI("found !!!");
                                 goto found;
                             }
                         }
@@ -226,7 +228,7 @@ found:
         D("Stop the GPS before starting");
 
     property_get("ro.kernel.android.gps.speed", prop, "9600");
-    ALOGE("ro.kernel.android.gps.speed = %s", prop);
+    ALOGI("ro.kernel.android.gps.speed = %s", prop);
     if (strcmp(prop, "4800") == 0)
         baud_rate = B4800;
 
