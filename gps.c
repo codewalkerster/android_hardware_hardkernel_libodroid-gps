@@ -41,13 +41,13 @@
 static GpsState  _gps_state[1];
 static int    id_in_gp_fixed[12];
 static int    id_in_gl_fixed[12];
-//static int    xz = 0;
 //#define  GPS_DEBUG  1
 
 #define  DFR(...)   ALOGD(__VA_ARGS__)
 
 #if GPS_DEBUG
 #  define  D(...)   ALOGD(__VA_ARGS__)
+static int    xz = 0;
 #else
 #  define  D(...)   ((void)0)
 #endif
@@ -709,7 +709,9 @@ nmea_reader_parse( NmeaReader*  r )
 
         if (num_messages==msg_number){
             int k = 0;
+#if GPS_DEBUG
         xz++;
+#endif
         for (int i=0; i < GNSS_MAX_SVS; i++){
             if (r->sv_gp_status.gnss_sv_list[i].svid > 0){
                 r->sv_gns_status.gnss_sv_list[k] = r->sv_gp_status.gnss_sv_list[i];
@@ -724,7 +726,7 @@ nmea_reader_parse( NmeaReader*  r )
         }
 
 
-/**
+#if GPS_DEBUG
         if (xz == 30) {
             for (int i=0; i < GNSS_MAX_SVS; i++) {
                 if (r->sv_gns_status.gnss_sv_list[i].svid > 0) {
@@ -734,8 +736,7 @@ nmea_reader_parse( NmeaReader*  r )
             ALOGI("total %d",k);
             xz = 0;
         }
-
-**/
+#endif
             r->sv_gns_status.num_svs=k;
             r->sv_gns_status.size = sizeof(r->sv_gns_status);
 
@@ -744,7 +745,6 @@ nmea_reader_parse( NmeaReader*  r )
 }
 
 
-/*
     } else if (!memcmp(tok.p, "GLL", 3)) {
         Token tok_fixStatus = nmea_tokenizer_get(tzer, 6);
 
@@ -756,7 +756,7 @@ nmea_reader_parse( NmeaReader*  r )
             Token tok_longitude = nmea_tokenizer_get(tzer, 3);
             Token tok_longitudeHemi = nmea_tokenizer_get(tzer, 4);
 
-//            ALOGD("in GGL, fixStatus=%c", tok_fixStatus.p[0]);
+            D("in GGL, fixStatus=%c", tok_fixStatus.p[0]);
             if (tok_fixStatus.p[0] == 'A') {
                 nmea_reader_update_latlong(r, tok_latitude,
                                            tok_latitudeHemi.p[0],
@@ -766,7 +766,6 @@ nmea_reader_parse( NmeaReader*  r )
                 r->update = 1;
             }
         }
-*/
     } else if ( !memcmp(tok.p, "RMC", 3) ) {
         Token  tok_time          = nmea_tokenizer_get(tzer,1);
         Token  tok_fixStatus     = nmea_tokenizer_get(tzer,2);
@@ -916,9 +915,11 @@ gps_state_start( GpsState*  s )
         ret = write( s->control[0], &cmd, 1 );
     } while (ret < 0 && errno == EINTR);
 
-    if (ret != 1)
+    if (ret != 1) {
         D("%s: could not send CMD_START command: ret=%d: %s",
                 __FUNCTION__, ret, strerror(errno));
+        gps_state_init(s, s->callbacks);
+    }
 }
 
 
@@ -1003,6 +1004,7 @@ gps_state_thread( void*  arg )
         for (ne = 0; ne < nevents; ne++) {
             if ((events[ne].events & (EPOLLERR|EPOLLHUP)) != 0) {
                 ALOGE("EPOLLERR or EPOLLHUP after epoll_wait() !?");
+                close(gps_fd);
                 usleep(5000*1000);
                 gps_state_init(state, state->callbacks);
                 return;
@@ -1128,7 +1130,8 @@ void gps_state_init( GpsState*  state, GpsCallbacks* callbacks )
         }
         i++;
         close(state->fd);
-    } while(state->fd > 0);
+        usleep(50*1000);
+    } while(state->fd < 0 && i < 50);
 
 found:
     if (state->fd < 0) {
@@ -1209,7 +1212,8 @@ serial_gps_init(GpsCallbacks* callbacks)
     D("serial_gps_init");
     GpsState*  s = _gps_state;
 
-    if (!s->init)
+    // Always retry
+    //if (!s->init)
         gps_state_init(s, callbacks);
 
     if (s->fd < 0)
