@@ -1,17 +1,10 @@
-# Use hardware GPS implementation if available.
-#
+# Copyright (C) 2011-2014 The Android-x86 Open Source Project
 
-LOCAL_PATH:= $(call my-dir)
+LOCAL_PATH := $(call my-dir)
+
+# HAL module implemenation, not prelinked and stored in
+# hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
 include $(CLEAR_VARS)
-
-ifeq ($(BOARD_HAVE_ODROID_GPS), true)
-
-ifeq ($(BOARD_SUPPORT_EXTERNAL_GPS), true)
-LOCAL_CFLAGS += -DEXTERNAL_GPS
-endif
-
-LOCAL_MODULE := gps.$(TARGET_PRODUCT)
-LOCAL_MODULE_TAGS := optional
 
 LOCAL_C_INCLUDES += \
 	hardware/libhardware/include \
@@ -19,26 +12,13 @@ LOCAL_C_INCLUDES += \
 	system/core/libutils/include \
 	system/core/libsystem/include
 
-LOCAL_SRC_FILES := \
-	odroid_gps.c \
-	nmea_reader.c \
-	nmea_tokenizer.c
-
-LOCAL_SHARED_LIBRARIES := \
-	libutils \
-	libcutils \
-	libdl \
-	libc
-
 LOCAL_CFLAGS += -DANDROID -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare -Wno-unused-comparison -Wno-incompatible-pointer-types -Wno-unused-function
-
+LOCAL_SHARED_LIBRARIES := liblog libcutils
+LOCAL_MODULE := gps.$(TARGET_BOOTLOADER_BOARD_NAME)
+LOCAL_MODULE_TAGS := optional
+LOCAL_SRC_FILES := gps.c
 LOCAL_PRELINK_MODULE := false
 LOCAL_PROPRIETARY_MODULE := true
 LOCAL_MODULE_RELATIVE_PATH := hw
 
-LOCAL_SHARED_LIBRARIES := \
-	liblog libcutils
-
 include $(BUILD_SHARED_LIBRARY)
-
-endif
