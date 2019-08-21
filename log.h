@@ -18,11 +18,18 @@
 #ifndef _LIBMBMGPS_LOG_H
 #define _LIBMBMGPS_LOG_H 1
 
-#define  LOG_TAG  "libmbm-gps"
+#define  LOG_TAG  "libodroid-gps"
 #include <cutils/log.h>
 
 #define ENTER ALOGV("%s: enter", __FUNCTION__)
 #define EXIT ALOGV("%s: exit", __FUNCTION__)
 
+//#define DEBUG 1
+
+#ifdef DEBUG
+#  define  D(...)   ALOGD(__VA_ARGS__)
+#else
+#  define  D(...)   ((void)0)
+#endif
 
 #endif				/* end _LIBMBMGPS_LOG_H_ */
