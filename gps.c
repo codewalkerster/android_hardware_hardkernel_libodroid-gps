@@ -1114,6 +1114,7 @@ void gps_state_init( GpsState*  state, GpsCallbacks* callbacks )
     strcat(path, "%d");
     do {
         sprintf(buf, path, i);
+        ALOGI("buf = %s", buf);
         state->fd = open(buf, O_RDONLY);
         if (state->fd > 0) {
             sprintf(buf, "/sys/class/tty/%s%d/device/uevent", prop, i);
@@ -1144,8 +1145,9 @@ void gps_state_init( GpsState*  state, GpsCallbacks* callbacks )
         }
         i++;
         close(state->fd);
+        state->fd = -1;
         usleep(50*1000);
-    } while(state->fd < 0 && i < 50);
+    } while(i < 10);
 
 found:
     if (state->fd < 0) {
