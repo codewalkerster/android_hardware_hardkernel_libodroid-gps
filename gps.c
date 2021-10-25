@@ -1095,17 +1095,15 @@ void gps_state_init( GpsState*  state, GpsCallbacks* callbacks )
     state->callbacks  = callbacks;
     D("gps_state_init");
 
-    int vid, pid = 0;
+    int vid = 0;
 
-    property_get("ro.gps.id.vendor", prop, "1546");
+    property_get("persist.gps.id.vendor", prop, "1546");
     vid = strtol(prop, NULL, 16);
-    memset(prop, '\0', PROPERTY_VALUE_MAX);
-    property_get("ro.gps.id.product", prop, "01a7");
-    pid = strtol(prop, NULL, 16);
 
     memset(prop, '\0', PROPERTY_VALUE_MAX);
-    property_get("ro.kernel.android.gps", prop, "ttyACM");
-    ALOGI("ro.kernel.android.gps = %s", prop);
+    property_get("persist.gps.node", prop, "ttyACM");
+    ALOGI("GPS node is = %s", prop);
+
     int i = 0;
     char buf[64];
     char path[64] = "/dev/";
