@@ -777,7 +777,6 @@ nmea_reader_parse( NmeaReader*  r )
                                            tok_longitude,
                                            tok_longitudeHemi.p[0]);
 
-                r->update = 1;
             }
         }
     } else if ( !memcmp(tok.p, "RMC", 3) ) {
