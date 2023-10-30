@@ -570,17 +570,12 @@ nmea_reader_parse( NmeaReader*  r )
     */
     NmeaTokenizer  tzer[1];
     Token          tok;
-    struct timeval tv;
 
     D("Received: '%.*s'", r->pos, r->in);
     if (r->pos < 9) {
         D("Too short. discarded.");
         return;
     }
-
-    gettimeofday(&tv, NULL);
-    if (_gps_state->init)
-        _gps_state->callbacks->nmea_cb(tv.tv_sec*1000+tv.tv_usec/1000, r->in, r->pos);
 
     nmea_tokenizer_init(tzer, r->in, r->in + r->pos);
 #if GPS_DEBUG
