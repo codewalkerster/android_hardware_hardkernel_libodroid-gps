@@ -1098,48 +1098,53 @@ void gps_state_init( GpsState*  state, GpsCallbacks* callbacks )
     property_get("persist.gps.node", prop, "ttyACM");
     ALOGI("GPS node is = %s", prop);
 
-    int i = 0;
-    char buf[64];
-    char path[64] = "/dev/";
-    FILE *fp = NULL;
-    strcat(path, prop);
-    strcat(path, "%d");
-    do {
-        sprintf(buf, path, i);
-        ALOGI("buf = %s", buf);
-        state->fd = open(buf, O_RDONLY);
-        if (state->fd > 0) {
-            sprintf(buf, "/sys/class/tty/%s%d/device/uevent", prop, i);
-            ALOGI("USB GPS node path = %s", buf);
-            fp = fopen(buf, "r");
-            if (fp != NULL) {
-                char line[128];
-                while(fgets(line, sizeof(line), fp) != NULL) {
-                    if (strncmp(line, "PRODUCT=", 8) == 0) {
-                        char *ptr = strchr(line, '=') + 1;
-                        char *tr = strtok(ptr, "/");
-                        int j = 0;
-                        int value[3];
-                        while (tr != NULL) {
-                            value[j] = strtol(tr, NULL, 16);
-                            tr = strtok(NULL, "/");
-                            j++;
-                        }
-                        if (value[0] == vid) {
-                            fclose(fp);
-                            ALOGI("found !!!");
-                            goto found;
+    if (strncmp(prop, "/dev/tty", 8) == 0) {
+        state->fd = open(prop, O_RDONLY);
+        ALOGI("%s GPS is not USB type.", prop);
+    } else {
+        int i = 0;
+        char buf[64];
+        char path[64] = "/dev/";
+        FILE *fp = NULL;
+        strcat(path, prop);
+        strcat(path, "%d");
+        do {
+            sprintf(buf, path, i);
+            ALOGI("buf = %s", buf);
+            state->fd = open(buf, O_RDONLY);
+            if (state->fd > 0) {
+                sprintf(buf, "/sys/class/tty/%s%d/device/uevent", prop, i);
+                ALOGI("USB GPS node path = %s", buf);
+                fp = fopen(buf, "r");
+                if (fp != NULL) {
+                    char line[128];
+                    while(fgets(line, sizeof(line), fp) != NULL) {
+                        if (strncmp(line, "PRODUCT=", 8) == 0) {
+                            char *ptr = strchr(line, '=') + 1;
+                            char *tr = strtok(ptr, "/");
+                            int j = 0;
+                            int value[3];
+                            while (tr != NULL) {
+                                value[j] = strtol(tr, NULL, 16);
+                                tr = strtok(NULL, "/");
+                                j++;
+                            }
+                            if (value[0] == vid) {
+                                fclose(fp);
+                                ALOGI("found !!!");
+                                goto found;
+                            }
                         }
                     }
                 }
+                fclose(fp);
             }
-            fclose(fp);
-        }
-        i++;
-        close(state->fd);
-        state->fd = -1;
-        usleep(50*1000);
-    } while(i < 10);
+            i++;
+            close(state->fd);
+            state->fd = -1;
+            usleep(50*1000);
+        } while(i < 10);
+    }
 
 found:
     if (state->fd < 0) {
