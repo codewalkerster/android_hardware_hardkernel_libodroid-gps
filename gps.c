@@ -464,7 +464,7 @@ static int nmea_reader_update_accuracy( NmeaReader*  r,
         return -1;
 
     r->fix.accuracy = str2float(tok.p, tok.end);
-    if (r->fix.accuracy == 99.99){
+    if (r->fix.accuracy == 99.99F){
       return 0;
     }
 

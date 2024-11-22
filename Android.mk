@@ -14,7 +14,7 @@ LOCAL_C_INCLUDES += \
 
 LOCAL_CFLAGS += -DANDROID -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare -Wno-unused-comparison -Wno-incompatible-pointer-types -Wno-unused-function -Wno-format
 LOCAL_SHARED_LIBRARIES := liblog libcutils
-LOCAL_MODULE := gps.$(TARGET_BOOTLOADER_BOARD_NAME)
+LOCAL_MODULE := gps.amlogic
 LOCAL_MODULE_TAGS := optional
 LOCAL_SRC_FILES := gps.c
 LOCAL_PRELINK_MODULE := false
