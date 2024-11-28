@@ -40,6 +40,8 @@
 #include <hardware/gps.h>
 #include "gpslib.h"
 
+extern int errno;
+
 static GpsState  _gps_state[1];
 static int    id_in_gp_fixed[12];
 static int    id_in_gl_fixed[12];
@@ -1073,7 +1075,6 @@ void gps_state_init( GpsState*  state, GpsCallbacks* callbacks )
 {
     char   prop[PROPERTY_VALUE_MAX];
     char   baud[PROPERTY_VALUE_MAX];
-    char   device[256];
     int    ret;
     int    pos = 0;
     int    len = 0;
@@ -1089,70 +1090,31 @@ void gps_state_init( GpsState*  state, GpsCallbacks* callbacks )
     state->callbacks  = callbacks;
     D("gps_state_init");
 
-    int vid = 0;
-
-    property_get("persist.gps.id.vendor", prop, "1546");
-    vid = strtol(prop, NULL, 16);
-
     memset(prop, '\0', PROPERTY_VALUE_MAX);
-    property_get("persist.gps.node", prop, "ttyACM");
-    ALOGI("GPS node is = %s", prop);
+    property_get("persist.vendor.gps.node", prop, "ttyACM");
+    ALOGI("persist.vendor.gps.node = %s", prop);
 
-    if (strncmp(prop, "/dev/tty", 8) == 0) {
-        state->fd = open(prop, O_RDONLY);
-        ALOGI("%s GPS is not USB type.", prop);
-    } else {
-        int i = 0;
-        char buf[64];
-        char path[64] = "/dev/";
-        FILE *fp = NULL;
-        strcat(path, prop);
-        strcat(path, "%d");
-        do {
-            sprintf(buf, path, i);
-            ALOGI("buf = %s", buf);
-            state->fd = open(buf, O_RDONLY);
-            if (state->fd > 0) {
-                sprintf(buf, "/sys/class/tty/%s%d/device/uevent", prop, i);
-                ALOGI("USB GPS node path = %s", buf);
-                fp = fopen(buf, "r");
-                if (fp != NULL) {
-                    char line[128];
-                    while(fgets(line, sizeof(line), fp) != NULL) {
-                        if (strncmp(line, "PRODUCT=", 8) == 0) {
-                            char *ptr = strchr(line, '=') + 1;
-                            char *tr = strtok(ptr, "/");
-                            int j = 0;
-                            int value[3];
-                            while (tr != NULL) {
-                                value[j] = strtol(tr, NULL, 16);
-                                tr = strtok(NULL, "/");
-                                j++;
-                            }
-                            if (value[0] == vid) {
-                                fclose(fp);
-                                ALOGI("found !!!");
-                                goto found;
-                            }
-                        }
-                    }
-                }
-                fclose(fp);
-            }
-            i++;
-            close(state->fd);
-            state->fd = -1;
-            usleep(50*1000);
-        } while(i < 10);
-    }
+    int i = 0;
+    char buf[64];
+    char path[64] = "/dev/";
+    FILE *fp = NULL;
+    strcat(path, prop);
+    strcat(path, "%d");
+    sprintf(buf, path, i);
+    do {
+        ALOGI("Try to open %s for GPS.", buf);
+        state->fd = open(buf, O_RDONLY);
+        if (state->fd > 0)
+            break;
+        else
+            ALOGE("Open failed (%s)", strerror(errno));
+        i++;
+        close(state->fd);
+        state->fd = -1;
+        usleep(50 * 1000);
+    } while (i < 10);
 
-found:
-    if (state->fd < 0) {
-        ALOGE("could not open gps serial device %s: %s", device, strerror(errno) );
-        return;
-    }
-
-    D("GPS will read from %s", device);
+    D("GPS will read from %s", buf);
 
     // Disable echo on serial lines
     if ( isatty( state->fd ) ) {
